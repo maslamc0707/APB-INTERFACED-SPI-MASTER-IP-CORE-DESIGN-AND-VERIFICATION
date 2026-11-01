@@ -1,0 +1,65 @@
+
+class apb_xtn extends uvm_sequence_item;
+        `uvm_object_utils(apb_xtn)
+
+
+        rand bit PRESETn;
+        rand bit PWRITE;
+        bit PSEL;
+        bit PENABLE;
+        rand bit [2:0] PADDR;
+        rand bit [7:0] PWDATA;
+        bit [7:0] PRDATA;
+        bit PREADY;
+        bit PSLVERR;
+
+        constraint valid_address{
+                        if(PWRITE)
+                                PADDR inside {0,1,2,3,5};
+                                else
+                                PADDR inside {0,1,2,5};
+}
+
+constraint rst{PRESETn dist {0:=1, 1:=99};}
+
+function new(string name="apb_xtn");
+        super.new(name);
+endfunction
+
+
+function void do_print(uvm_printer printer);
+        super.do_print(printer);
+
+        printer.print_field("PRESETn",this.PRESETn,1,UVM_BIN);
+         printer.print_field("PWRITE",this.PWRITE,1,UVM_DEC);
+         printer.print_field("PSEL",this.PSEL,1,UVM_BIN);
+         printer.print_field("PENABLE",this.PENABLE,1,UVM_BIN);
+         printer.print_field("PADDR",this.PADDR,3,UVM_DEC);
+         printer.print_field("PWDATA",this.PWDATA,8,UVM_BIN);
+         printer.print_field("PRDATA",this.PRDATA,8,UVM_BIN);
+         printer.print_field("PREADY",this.PREADY,1,UVM_DEC);
+         printer.print_field("PSLVERR",this.PSLVERR,1,UVM_BIN);
+endfunction
+
+
+function void posr_randomize();
+        bit[7:0] SPICR1_mask = 8'b1011_1111;
+         bit[7:0] SPICR2_mask = 8'b0001_1011;
+         bit[7:0] SPIBR_mask = 8'b0111_0111;
+         bit[7:0] SPISR_mask = 8'b0000_0000;
+         bit[7:0] SPIDR_mask = 8'b1111_1111;
+
+        if(PWRITE)
+                begin
+                    case(PADDR)
+                        3'b000: PWDATA = PWDATA & SPICR1_mask;
+                        3'b001: PWDATA = PWDATA & SPICR2_mask;
+                        3'b010: PWDATA = PWDATA & SPIBR_mask;
+                        3'b011: PWDATA = PWDATA & SPISR_mask;
+                        3'b101: PWDATA = PWDATA & SPIDR_mask;
+                        default: PWDATA = PWDATA & SPIDR_mask;
+                    endcase
+                end
+endfunction
+
+endclass

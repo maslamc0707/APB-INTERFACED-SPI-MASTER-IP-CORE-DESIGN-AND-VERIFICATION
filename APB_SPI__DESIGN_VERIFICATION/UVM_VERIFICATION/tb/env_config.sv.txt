@@ -1,0 +1,17 @@
+class env_config extends uvm_object;
+        `uvm_object_utils(env_config)
+
+        bit has_scoreboard=1;
+        bit has_aagent=1;
+        bit has_sagent=1;
+        apb_agt_config m_apb_agt_cfg[];
+        spi_agt_config m_spi_agt_cfg[];
+        int no_of_apb_agt=5;
+        int no_of_spi_agt=5;
+
+        static int data_verified_cnt=0;
+
+function new(string name="env_config");
+        super.new(name);
+endfunction
+endclass

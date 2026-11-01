@@ -1,0 +1,30 @@
+class spi_agent extends uvm_agent;
+        `uvm_component_utils(spi_agent)
+        spi_agt_config a_cfg;
+
+        spi_monitor monh;
+        spi_driver drvh;
+        spi_sequencer seqrh;
+
+function new(string name="spi_agent",uvm_component parent);
+        super.new(name,parent);
+endfunction : new
+
+function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(spi_agt_config)::get(this,"","spi_agt_config",a_cfg))
+        `uvm_fatal(get_type_name(),"not getting")
+        monh=spi_monitor::type_id::create("monh",this);
+        if(a_cfg.is_active==UVM_ACTIVE)
+begin
+        drvh=spi_driver::type_id::create("drvh",this);
+        seqrh=spi_sequencer::type_id::create("seqrh",this);
+end
+endfunction : build_phase
+
+function void connect_phase(uvm_phase phase);
+        if(a_cfg.is_active==UVM_ACTIVE)
+        drvh.seq_item_port.connect(seqrh.seq_item_export);
+endfunction : connect_phase
+
+endclass : spi_agent

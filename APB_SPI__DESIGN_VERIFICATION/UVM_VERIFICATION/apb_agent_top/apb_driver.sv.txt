@@ -1,0 +1,65 @@
+class apb_driver extends uvm_driver #(apb_xtn);
+        `uvm_component_utils(apb_driver)
+        virtual apb_intf.APB_DRV_MP vif;
+        apb_agt_config a_cfg;
+
+function new(string name="apb_driver",uvm_component parent);
+        super.new(name,parent);
+endfunction : new
+
+function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(apb_agt_config)::get(this,"","apb_agt_config",a_cfg))
+        `uvm_fatal(get_type_name(),"not getting");
+endfunction : build_phase
+
+function void connect_phase(uvm_phase phase);
+        vif=a_cfg.vif;
+endfunction : connect_phase
+
+task run_phase(uvm_phase phase);
+
+        @(vif.apb_drv_cb);
+        vif.apb_drv_cb.PRESETn<=1'b0;
+
+        @(vif.apb_drv_cb);
+        vif.apb_drv_cb.PRESETn<=1'b1;
+        forever
+                begin
+                $display("in apb_driver");
+                seq_item_port.get_next_item(req);
+                send_to_dut(req);
+                $display("after get next item");
+                seq_item_port.item_done();
+                end
+endtask : run_phase
+
+task send_to_dut(apb_xtn xtn);
+        `uvm_info("APB_DRIVER",$sformatf("printing from driver \n %s", xtn.sprint()),UVM_LOW)
+
+        @(vif.apb_drv_cb);
+        vif.apb_drv_cb.PADDR<=xtn.PADDR;
+        vif.apb_drv_cb.PWRITE<=xtn.PWRITE;
+        vif.apb_drv_cb.PSEL<=1'b1;
+        vif.apb_drv_cb.PENABLE<=1'b0;
+
+        if(xtn.PWRITE)
+                vif.apb_drv_cb.PWDATA<=xtn.PWDATA;
+
+        @(vif.apb_drv_cb);
+        vif.apb_drv_cb.PENABLE<=1'b1;
+
+        wait(vif.apb_drv_cb.PREADY == 1)
+        if(xtn.PWRITE==1'b0)
+                xtn.PRDATA=vif.apb_drv_cb.PRDATA;
+
+        @(vif.apb_drv_cb);
+        vif.apb_drv_cb.PSEL<=1'b0;
+        vif.apb_drv_cb.PENABLE<=1'b0;
+        @(vif.apb_drv_cb);
+
+        a_cfg.drv_data_send_int++;
+
+endtask : send_to_dut
+
+endclass

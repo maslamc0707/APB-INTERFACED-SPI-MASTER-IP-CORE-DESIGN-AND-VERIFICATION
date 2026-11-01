@@ -1,0 +1,66 @@
+class apb_monitor extends uvm_monitor;
+        `uvm_component_utils(apb_monitor)
+        virtual apb_intf.APB_MON_MP vif;
+        apb_agt_config a_cfg;
+        uvm_analysis_port#(apb_xtn) monitor_port;
+
+function new(string name="apb_monitor",uvm_component parent);
+        super.new(name,parent);
+        monitor_port=new("monitor_port",this);
+endfunction
+
+function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(apb_agt_config)::get(this,"","apb_agt_config",a_cfg))
+        `uvm_fatal(get_type_name(),"monitor not getting")
+endfunction
+
+function void connect_phase(uvm_phase phase);
+        vif=a_cfg.vif;
+endfunction : connect_phase
+
+task run_phase(uvm_phase phase);
+        forever begin
+        collect_data();
+end
+endtask
+
+task collect_data();
+  apb_xtn xtn;
+
+  // Wait for ACCESS phase
+  @(vif.apb_mon_cb);
+  wait(vif.apb_mon_cb.PSEL &&
+       vif.apb_mon_cb.PENABLE &&
+       vif.apb_mon_cb.PREADY);
+
+  xtn = apb_xtn::type_id::create("xtn", this);
+
+  xtn.PRESETn = vif.apb_mon_cb.PRESETn;
+  xtn.PADDR   = vif.apb_mon_cb.PADDR;
+  xtn.PWRITE  = vif.apb_mon_cb.PWRITE;
+  xtn.PSEL    = vif.apb_mon_cb.PSEL;
+  xtn.PENABLE = vif.apb_mon_cb.PENABLE;
+  xtn.PREADY  = vif.apb_mon_cb.PREADY;
+  xtn.PSLVERR = vif.apb_mon_cb.PSLVERR;
+
+  if(vif.apb_mon_cb.PWRITE)
+    xtn.PWDATA = vif.apb_mon_cb.PWDATA;
+  else
+    xtn.PRDATA = vif.apb_mon_cb.PRDATA;
+
+  `uvm_info("APB_MONITOR",$sformatf("Printing from monitor \n %s",xtn.sprint()), UVM_LOW)
+
+        $display("APB_MONITOR : PWRITE=%0b PADDR=%0h PWDATA=%0h PRDATA=%0h",
+         xtn.PWRITE, xtn.PADDR, xtn.PWDATA, xtn.PRDATA);
+
+  monitor_port.write(xtn);
+
+  a_cfg.mon_rcvd_xtn_cnt++;
+
+  wait(!(vif.apb_mon_cb.PSEL &&
+        vif.apb_mon_cb.PENABLE));
+
+endtask
+
+endclass

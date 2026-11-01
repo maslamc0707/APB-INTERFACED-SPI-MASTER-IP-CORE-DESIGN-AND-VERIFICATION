@@ -1,0 +1,15 @@
+class spi_agt_config extends uvm_object;
+
+        `uvm_object_utils(spi_agt_config)
+        virtual spi_intf vif;
+
+        uvm_active_passive_enum is_active=UVM_ACTIVE;
+
+        static int mon_rcvd_xtn_cnt=0;
+        static int drv_data_send_cnt=0;
+
+
+function new(string name="spi_agt_config");
+        super.new(name);
+endfunction
+endclass

@@ -1,0 +1,146 @@
+class scoreboard extends uvm_scoreboard;
+        `uvm_component_utils(scoreboard)
+        uvm_tlm_analysis_fifo#(apb_xtn) fifo_apb[];
+        uvm_tlm_analysis_fifo#(spi_xtn) fifo_spi[];
+
+        env_config e_cfg;
+
+        apb_xtn a_xtn;
+        apb_xtn apb_cov_data;
+
+        spi_xtn s_xtn;
+        spi_xtn spi_cov_data;
+
+covergroup apb_cover_group;
+        option.per_instance=1;
+
+        Reset:coverpoint apb_cov_data.PRESETn{bins rst={0,1};}
+        Addr:coverpoint apb_cov_data.PADDR{bins addr[]={0,1,2,5};}
+        Selx:coverpoint apb_cov_data.PSEL{bins sel={0,1};}
+        Enable:coverpoint apb_cov_data.PENABLE{bins enb={0,1};}
+        Write:coverpoint apb_cov_data.PWRITE{bins wrt={0,1};}
+        Ready:coverpoint apb_cov_data.PREADY{bins rdy={0,1};}
+        Error:coverpoint apb_cov_data.PSLVERR{bins err={0,1};}
+        Wdata:coverpoint apb_cov_data.PWDATA{bins wdata_low={[8'h00:8'h0f]};
+                                             bins wdata_high={[8'h1f:8'hff]};}
+        Rdata:coverpoint apb_cov_data.PRDATA{bins rdata_low={[8'h00:8'h0f]};
+                                             bins rdata_high={[8'h1f:8'hff]};}
+
+        Selx_Enable:cross Selx,Enable;
+        selx_Enable_Ready:cross Selx,Enable,Ready;
+endgroup
+
+covergroup spi_cover_group;
+        option.per_instance=1;
+
+        Slave_select:coverpoint spi_cov_data.ss{bins ss={0,1};}
+        miso_data:coverpoint spi_cov_data.miso{bins miso_low={[8'h00:8'h0f]};
+                                               bins miso_high={[8'h1f:8'hff]};}
+        mosi_data:coverpoint spi_cov_data.mosi{bins mosi_low={[8'h00:8'h0f]};
+                                               bins mosi_high={[8'h1f:8'hff]};}
+//      spi_int_req:coverpoint spi_cov_data.spi_inpt_req{bins spi_inpt={0,1};}
+endgroup
+
+function new(string name="scoreboard",uvm_component parent);
+        super.new(name, parent);
+
+//      apb_cov_data=new();
+//      spi_cov_data=new();
+
+        apb_cover_group=new();
+        spi_cover_group=new();
+endfunction
+
+function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db#(env_config)::get(this,"","env_config",e_cfg))
+        `uvm_fatal("error","not getting")
+
+        fifo_apb=new[e_cfg.no_of_apb_agt];
+        fifo_spi=new[e_cfg.no_of_spi_agt];
+
+        foreach(fifo_apb[i])
+          fifo_apb[i]=new($sformatf("fifo_apb[%0d]",i),this);
+
+        foreach(fifo_spi[i])
+          fifo_spi[i]=new($sformatf("fifo_spi[%0d]",i),this);
+
+        a_xtn=apb_xtn::type_id::create("a_xtn");
+        s_xtn=spi_xtn::type_id::create("s_xtn");
+endfunction
+
+task run_phase(uvm_phase phase);
+        fork
+          begin
+            forever
+              begin
+                fifo_apb[0].get(a_xtn);
+                apb_cov_data=a_xtn;
+                apb_cover_group.sample();
+                `uvm_info(get_type_name(),$sformatf("Scoreboard : \n spi_xtn %0s",a_xtn.sprint()),UVM_LOW)
+                $display("before compare data");
+                compare_data(a_xtn);
+                $display("after compare data");
+              end
+          end
+
+          begin
+
+            forever
+              begin
+                $display("before get data");
+                fifo_spi[0].get(s_xtn);
+                spi_cov_data=s_xtn;
+                spi_cover_group.sample();
+                $display("before compare data");
+                `uvm_info(get_type_name(),$sformatf("Scoreboard : \n spi_xtn %0s",s_xtn.sprint()),UVM_LOW)
+                compare_data(a_xtn);
+                $display("after compare data");
+              end
+          end
+        join
+endtask
+
+task compare_data(apb_xtn a_xtn);
+
+//compare PWDATA to mosi
+
+        wait(s_xtn!=null);
+        wait(a_xtn!=null);
+
+        if(a_xtn.PWRITE && a_xtn.PADDR==3'b101)
+          begin
+            $display("**************************** ScoreBoard ********************************");
+            if(a_xtn.PWDATA[7:0]==s_xtn.mosi[7:0]) begin
+              `uvm_info(get_type_name(),"Mosi data comparison is successfull",UVM_LOW)
+                $display("PWDATA=%0b,mosi=%0b",a_xtn.PWDATA,s_xtn.mosi);
+            end
+            else begin
+              `uvm_error(get_type_name(),"mosi data comparison is failed")
+                $display("PWDATA=%0b,mosi=%0b",a_xtn.PWDATA,s_xtn.mosi);
+            $display("************************************************************************");
+            end
+        end
+
+        else if(!a_xtn.PWRITE && a_xtn.PADDR==3'b101)
+          begin
+            $display("**************************** ScoreBoard ********************************");
+            if(a_xtn.PRDATA[7:0]==s_xtn.miso[7:0]) begin
+              `uvm_info(get_type_name(),"Miso data comparison is successfull",UVM_LOW)
+                $display("PRDATA=%0b,miso=%0b",a_xtn.PRDATA,s_xtn.miso);
+            end
+            else begin
+              `uvm_error(get_type_name(),"miso data comparison is failed")
+                $display("PRDATA=%0b,miso=%0b",a_xtn.PRDATA,s_xtn.miso);
+            $display("************************************************************************");
+            end
+        end
+
+        e_cfg.data_verified_cnt++;
+endtask
+
+function void report_phase(uvm_phase phase);
+        `uvm_info(get_type_name(),$sformatf("SPI Scoreboard: The number of compared transaction in scoreboard are %0d",e_cfg.data_verified_cnt++),UVM_LOW)
+endfunction
+
+endclass

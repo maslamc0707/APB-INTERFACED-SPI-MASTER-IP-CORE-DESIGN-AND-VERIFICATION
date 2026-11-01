@@ -1,0 +1,27 @@
+class spi_seqs extends uvm_sequence#(spi_xtn);
+        `uvm_object_utils(spi_seqs)
+
+function new(string name="spi_seqs");
+        super.new(name);
+endfunction
+
+endclass
+
+class miso_seqs extends spi_seqs;
+
+        `uvm_object_utils(miso_seqs)
+function new(string name="miso_seqs");
+        super.new(name);
+endfunction
+
+task body();
+
+      begin
+        req = spi_xtn::type_id::create("req");
+        start_item(req);
+        assert(req.randomize());
+         `uvm_info("SEQ_GEN", $sformatf("Generated Transaction:\n%s", req.sprint()), UVM_LOW)
+        finish_item(req);
+      end
+endtask
+endclass

@@ -1,0 +1,21 @@
+class spi_agt_top extends uvm_env;
+        `uvm_component_utils(spi_agt_top)
+        spi_agent agnth[];
+        env_config e_cfg;
+
+function new(string name="spi_agt_top",uvm_component parent);
+        super.new(name,parent);
+endfunction
+
+function void build_phase(uvm_phase phase);
+        super.build_phase(phase);
+        if(!uvm_config_db #(env_config)::get(this,"","env_config",e_cfg))
+        `uvm_fatal("error","agt top not getting")
+        agnth=new[e_cfg.no_of_spi_agt];
+        foreach(agnth[i])
+        begin
+        agnth[i]=spi_agent::type_id::create($sformatf("agnth[%0d]",i),this);
+        uvm_config_db #(spi_agt_config)::set(this,"*","spi_agt_config",e_cfg.m_spi_agt_cfg[i]);
+        end
+endfunction
+endclass

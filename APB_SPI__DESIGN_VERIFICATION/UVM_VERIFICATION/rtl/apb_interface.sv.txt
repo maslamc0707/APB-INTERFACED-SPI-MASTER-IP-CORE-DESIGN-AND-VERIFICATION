@@ -1,0 +1,48 @@
+interface apb_intf(input bit clock);
+   bit PCLK;
+   logic PRESETn;
+   logic PWRITE;
+   logic PSEL;
+   logic PENABLE;
+   logic [2:0] PADDR;
+   logic [7:0] PWDATA;
+   logic [7:0] PRDATA;
+   logic PREADY;
+   logic PSLVERR;
+
+//Connects TB clock to APB protocol PCLK = clock;
+
+ assign PCLK = clock;
+
+   //APB Driver Clocking Block
+   clocking apb_drv_cb @(posedge clock);
+     default input #1 output #1;
+     output PRESETn;
+     output PWRITE;
+     output PSEL;
+     output PENABLE;
+     output PADDR;
+     output PWDATA;
+     input PRDATA;
+     input PREADY;
+     input PSLVERR;
+   endclocking
+
+   //APB Monitor Clocking Block
+   clocking apb_mon_cb @(posedge clock);
+     default input #1 output #1;
+     input PRESETn;
+     input PWRITE;
+     input PSEL;
+     input PENABLE;
+     input PADDR;
+     input PWDATA;
+     input PRDATA;
+     input PREADY;
+     input PSLVERR;
+   endclocking
+
+   modport APB_DRV_MP (clocking apb_drv_cb);
+   modport APB_MON_MP (clocking apb_mon_cb);
+
+endinterface
